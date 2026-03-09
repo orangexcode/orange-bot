@@ -165,8 +165,36 @@ async def send_weekly_report():
 # 📩 MESSAGE HANDLER
 # =========================================================
 
+processed_messages = set()
+
 @client.on(events.NewMessage(chats=SOURCE_CHATS))
 async def handler(event):
+    
+    msg_id = event.id
+
+    # Skip if already processed
+    if msg_id in processed_messages:
+        return
+
+    processed_messages.add(msg_id)
+
+    text = event.raw_text or ""
+    
+    if not text and not event.message.media:
+        return
+
+    cleaned = clean_links(text)
+    formatted = format_message(cleaned)
+
+    try:
+        for target in TARGET_CHATS:
+            if event.message.media:
+                await client.send_file(target, event.message.media, caption=formatted)
+            else:
+                await client.send_message(target, formatted)
+
+    except Exception as e:
+        log(f"⚠️ Error: {e}")
     global forwarded_count, promo_skipped, charts_sent, last_prediction
 
     text = event.raw_text or ""
@@ -264,4 +292,5 @@ async def run_bot():
 
 if __name__ == "__main__":
     asyncio.run(run_bot())
+
 
